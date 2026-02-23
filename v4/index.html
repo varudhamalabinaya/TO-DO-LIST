@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo App</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        .input-section { margin-bottom: 20px; }
+        input[type="text"] { padding: 8px; width: 300px; margin-right: 10px; }
+        button { padding: 8px 15px; margin: 2px; cursor: pointer; }
+        .add-btn { background: #4CAF50; color: white; border: none; }
+        .complete-btn { background: #2196F3; color: white; border: none; }
+        .undo-btn { background: #FF9800; color: white; border: none; }
+        .edit-btn { background: #9C27B0; color: white; border: none; }
+        .delete-btn { background: #f44336; color: white; border: none; }
+        .task-item { padding: 10px; border: 1px solid #ddd; margin: 5px 0; display: flex; justify-content: space-between; align-items: center; }
+        .completed { text-decoration: line-through; color: #888; }
+        .task-text { flex-grow: 1; margin-right: 10px; }
+        .task-buttons { display: flex; gap: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Todo App</h1>
+    
+    <div class="input-section">
+        <input type="text" id="taskInput" placeholder="Enter a new task">
+        <button class="add-btn" onclick="addTask()">Add Task</button>
+    </div>
+    
+    <div id="taskList"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:9001';
+
+        async function addTask() {
+            const input = document.getElementById('taskInput');
+            const task = input.value.trim();
+            if (!task) return;
+
+            try {
+                await fetch(`${API_BASE}/add?task=${encodeURIComponent(task)}`);
+                input.value = '';
+                loadTasks();
+            } catch (error) {
+                alert('Error adding task');
+            }
+        }
+
+        async function loadTasks() {
+            try {
+                const response = await fetch(`${API_BASE}/view`);
+                const text = await response.text();
+                displayTasks(text);
+            } catch (error) {
+                document.getElementById('taskList').innerHTML = '<p>Error loading tasks</p>';
+            }
+        }
+
+        function displayTasks(tasksText) {
+            const taskList = document.getElementById('taskList');
+            if (tasksText === 'No task is available') {
+                taskList.innerHTML = '<p>No tasks available</p>';
+                return;
+            }
+
+            const lines = tasksText.trim().split('\n');
+            taskList.innerHTML = lines.map((line, index) => {
+                const isCompleted = line.includes('[COMPLETED]');
+                const taskName = line.replace(/^\d+\.\s*/, '').replace(' [COMPLETED]', '');
+                const taskIndex = index + 1;
+
+                return `
+                    <div class="task-item">
+                        <span class="task-text ${isCompleted ? 'completed' : ''}">${taskName}</span>
+                        <div class="task-buttons">
+                            ${!isCompleted ? 
+                                `<button class="complete-btn" onclick="completeTask(${taskIndex})">Complete</button>` :
+                                `<button class="undo-btn" onclick="undoTask(${taskIndex})">Undo</button>`
+                            }
+                            <button class="edit-btn" onclick="editTask(${taskIndex}, '${taskName}')">Edit</button>
+                            <button class="delete-btn" onclick="deleteTask(${taskIndex})">Delete</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function completeTask(index) {
+            try {
+                await fetch(`${API_BASE}/complete?index=${index}`);
+                loadTasks();
+            } catch (error) {
+                alert('Error completing task');
+            }
+        }
+
+        async function undoTask(index) {
+            try {
+                await fetch(`${API_BASE}/undo?index=${index}`);
+                loadTasks();
+            } catch (error) {
+                alert('Error undoing task');
+            }
+        }
+
+        async function editTask(index, currentName) {
+            const newName = prompt('Edit task:', currentName);
+            if (newName && newName.trim() !== currentName) {
+                try {
+                    await fetch(`${API_BASE}/edit?index=${index}&task=${encodeURIComponent(newName.trim())}`);
+                    loadTasks();
+                } catch (error) {
+                    alert('Error editing task');
+                }
+            }
+        }
+
+        async function deleteTask(index) {
+            if (confirm('Delete this task?')) {
+                try {
+                    await fetch(`${API_BASE}/delete?index=${index}`);
+                    loadTasks();
+                } catch (error) {
+                    alert('Error deleting task');
+                }
+            }
+        }
+
+        document.getElementById('taskInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') addTask();
+        });
+
+        loadTasks();
+    </script>
+</body>
+</html>

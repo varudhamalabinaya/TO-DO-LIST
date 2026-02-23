@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>To-Do List</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        .container { background: #f9f9f9; padding: 20px; border-radius: 8px; }
+        input, button { padding: 10px; margin: 5px; border: 1px solid #ddd; border-radius: 4px; }
+        button { background: #007cba; color: white; cursor: pointer; }
+        button:hover { background: #005a87; }
+        .task-list { margin-top: 20px; }
+        .task-item { background: white; padding: 10px; margin: 5px 0; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
+        .task-content { flex-grow: 1; }
+        .task-name { font-weight: bold; }
+        .task-desc { font-size: 14px; color: #666; margin-top: 2px; }
+        .completed { text-decoration: line-through; color: #888; }
+        .task-buttons button { margin-left: 5px; padding: 5px 10px; font-size: 12px; }
+        .complete-btn { background: #28a745; }
+        .undo-btn { background: #ffc107; color: black; }
+        .edit-btn { background: #17a2b8; }
+        .delete-btn { background: #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>To-Do List</h1>
+        
+        <div>
+            <input type="text" id="taskInput" placeholder="Enter task name" />
+            <input type="text" id="descInput" placeholder="Enter description (optional)" />
+            <button onclick="addTask()">Add Task</button>
+        </div>
+        
+        <div class="task-list" id="taskList"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:9001';
+
+        function addTask() {
+            const task = document.getElementById('taskInput').value.trim();
+            const description = document.getElementById('descInput').value.trim();
+            
+            if (!task) {
+                alert('Please enter a task name');
+                return;
+            }
+            
+            let url = `${API_URL}/add?task=${encodeURIComponent(task)}`;
+            if (description) {
+                url += `&description=${encodeURIComponent(description)}`;
+            }
+            
+            fetch(url)
+                .then(response => response.text())
+                .then(data => {
+                    document.getElementById('taskInput').value = '';
+                    document.getElementById('descInput').value = '';
+                    loadTasks();
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function deleteTask(index) {
+            fetch(`${API_URL}/delete?index=${index}`)
+                .then(response => response.text())
+                .then(data => loadTasks())
+                .catch(error => console.error('Error:', error));
+        }
+
+        function completeTask(index) {
+            fetch(`${API_URL}/complete?index=${index}`)
+                .then(response => response.text())
+                .then(data => loadTasks())
+                .catch(error => console.error('Error:', error));
+        }
+
+        function undoTask(index) {
+            fetch(`${API_URL}/undo?index=${index}`)
+                .then(response => response.text())
+                .then(data => loadTasks())
+                .catch(error => console.error('Error:', error));
+        }
+
+        function editTask(index) {
+            const newName = prompt('Enter new task name:');
+            const newDesc = prompt('Enter new description (optional):');
+            
+            if (newName && newName.trim()) {
+                let url = `${API_URL}/edit?index=${index}&task=${encodeURIComponent(newName.trim())}`;
+                if (newDesc !== null) {  // null means user clicked cancel
+                    url += `&description=${encodeURIComponent(newDesc.trim())}`;
+                }
+                
+                fetch(url)
+                    .then(response => response.text())
+                    .then(data => loadTasks())
+                    .catch(error => console.error('Error:', error));
+            }
+        }
+
+        function loadTasks() {
+            fetch(`${API_URL}/view`)
+                .then(response => response.text())
+                .then(data => {
+                    const taskList = document.getElementById('taskList');
+                    if (data.trim() === 'No task is available') {
+                        taskList.innerHTML = '<p>No tasks available</p>';
+                        return;
+                    }
+                    
+                    const tasks = data.trim().split('\n');
+                    let html = '';
+                    
+                    tasks.forEach((task, index) => {
+                        const taskNumber = index + 1;
+                        const isCompleted = task.includes('[COMPLETED]');
+                        
+                        // Parse task name and description
+                        let taskText = task.replace(/^\d+\.\s*/, '').replace(' [COMPLETED]', '');
+                        let taskName = taskText;
+                        let taskDesc = '';
+                        
+                        if (taskText.includes(' - ')) {
+                            const parts = taskText.split(' - ');
+                            taskName = parts[0];
+                            taskDesc = parts.slice(1).join(' - ');
+                        }
+                        
+                        html += `
+                            <div class="task-item">
+                                <div class="task-content ${isCompleted ? 'completed' : ''}">
+                                    <div class="task-name">${taskName}</div>
+                                    ${taskDesc ? `<div class="task-desc">${taskDesc}</div>` : ''}
+                                </div>
+                                <div class="task-buttons">
+                                    ${!isCompleted ? 
+                                        `<button class="complete-btn" onclick="completeTask(${taskNumber})">Complete</button>` :
+                                        `<button class="undo-btn" onclick="undoTask(${taskNumber})">Undo</button>`
+                                    }
+                                    <button class="edit-btn" onclick="editTask(${taskNumber})">Edit</button>
+                                    <button class="delete-btn" onclick="deleteTask(${taskNumber})">Delete</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    taskList.innerHTML = html;
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        // Load tasks when page loads
+        window.onload = loadTasks;
+    </script>
+</body>
+</html>

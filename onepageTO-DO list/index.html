@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Todo List</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #f3f3f3;
+            padding: 40px;
+        }
+        .container {
+            width: 400px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px gray;
+        }
+        input {
+            width: 70%;
+            padding: 8px;
+        }
+        button {
+            padding: 8px 15px;
+            margin-left: 10px;
+            cursor: pointer;
+        }
+        .task {
+            display: flex;
+            justify-content: space-between;
+            background: #eee;
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 5px;
+        }
+        .delete-btn {
+            background: red;
+            color: white;
+            border: none;
+            cursor: pointer;
+            padding: 4px 10px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Todo List App</h2>
+
+        <input id="taskInput" placeholder="Enter task">
+        <button onclick="addTask()">Add</button>
+
+        <h3>Tasks:</h3>
+        <div id="taskList"></div>
+    </div>
+
+<script>
+    function addTask() {
+        let task = document.getElementById("taskInput").value;
+
+        fetch("http://localhost:9000/add?task=" + task)
+            .then(() => {
+                loadTasks();
+                document.getElementById("taskInput").value = "";
+            });
+    }
+
+    function loadTasks() {
+        fetch("http://localhost:9000/view")
+        .then(response => response.text())
+        .then(data => {
+            let tasks = data.trim().split("\n");
+            let html = "";
+
+            if (data === "No task is available") {
+                html = "<p>No tasks yet.</p>";
+            } else {
+                for (let i = 0; i < tasks.length; i++) {
+                    let index = i + 1;
+                    html += `
+                        <div class="task">
+                            <span>${tasks[i]}</span>
+                            <button class="delete-btn" onclick="deleteTask(${index})">Delete</button>
+                        </div>
+                    `;
+                }
+            }
+
+            document.getElementById("taskList").innerHTML = html;
+        });
+    }
+
+    function deleteTask(index) {
+        fetch("http://localhost:9000/delete?index=" + index)
+        .then(() => loadTasks());
+    }
+
+    // Load tasks on page start
+    window.onload = loadTasks;
+</script>
+
+</body>
+</html>

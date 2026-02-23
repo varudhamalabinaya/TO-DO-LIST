@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Todo App</title>
+    <style>
+        body {
+            font-family: Arial;
+            padding: 20px;
+        }
+        input, button {
+            padding: 8px;
+            margin: 5px;
+        }
+        .task {
+            margin: 10px 0;
+        }
+        .complete {
+            text-decoration: line-through;
+            color: green;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Todo App</h2>
+
+    <input id="taskInput" type="text" placeholder="Enter task">
+    <button onclick="addTask()">Add</button>
+
+    <h3>Your Tasks</h3>
+    <div id="taskList"></div>
+
+    <script>
+        const API = "http://localhost:9001";
+
+        async function loadTasks() {
+            const res = await fetch(`${API}/view`);
+            const data = await res.text();
+            
+            let html = "";
+            
+            if (data === "No task is available") {
+                html = "<p>No tasks yet.</p>";
+            } else {
+                const tasks = data.trim().split("\n");
+                tasks.forEach((task, i) => {
+                    const index = i + 1;
+                    const isCompleted = task.includes('[COMPLETED]');
+                    const taskText = task.replace('[COMPLETED]', '').trim();
+                    
+                    html += `
+                        <div class="task ${isCompleted ? 'complete' : ''}">
+                            ${taskText}
+                            ${!isCompleted ? `<button onclick="completeTask(${index})">Complete</button>` : ''}
+                            <button onclick="deleteTask(${index})">Delete</button>
+                        </div>
+                    `;
+                });
+            }
+
+            document.getElementById("taskList").innerHTML = html;
+        }
+
+        async function addTask() {
+            let task = document.getElementById("taskInput").value;
+            if (!task) return alert("Enter a task!");
+
+            await fetch(`${API}/add?task=` + task);
+            document.getElementById("taskInput").value = "";
+            loadTasks();
+        }
+
+        async function completeTask(index) {
+            await fetch(`${API}/complete?index=` + index);
+            loadTasks();
+        }
+
+        async function deleteTask(index) {
+            await fetch(`${API}/delete?index=` + index);
+            loadTasks();
+        }
+
+        loadTasks();
+    </script>
+
+</body>
+</html>
